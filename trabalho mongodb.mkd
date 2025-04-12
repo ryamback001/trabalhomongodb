@@ -1,0 +1,124 @@
+Passos
+
+1 - Criação do Docker network
+2 - Iniciar quatro instancias do MongoDB
+3 - Inicializar o Conjunto de Replicas
+
+Pré-requisitos
+Já instalado o Docker Desktop e Mongo Compass. 
+
+1- Criação do Docker Network
+
+Criar uma rede Docker. Que permitirá que cada um dos seus contêineres em execução nessa rede se enxerguem 
+
+Comando: 
+
+-> docker network create redeWork (nome da rede)
+ 
+Para iniciar o contêiner, utilize o comando docker run.
+
+Comando:
+
+-> docker run -d --rm -p 27017:27017 --name mongo01 --network redeWork mongodb/mongodb-community-server:latest --replSet myReplicaSet --bind_ip localhost,mongo01
+
+
+Este comando cria uma nova instância mongodb pronta para um conjunto de réplicas.
+
+Agora para adicionar novas replicas:
+
+Comando: 
+
+-> docker run -d --rm -p 27018:27017 --name mongo02 --network redeWork mongodb/mongodb-community-server:latest --replSet myReplicaSet --bind_ip localhost,mongo02
+-> docker run -d --rm -p 27019:27017 --name mongo03 --network redeWork mongodb/mongodb-community-server:latest --replSet myReplicaSet --bind_ip localhost,mongo03
+-> docker run -d --rm -p 27020:27017 --name mongo04 --network redeWork mongodb/mongodb-community-server:latest --replSet myReplicaSet --bind_ip localhost,mongo04
+
+-> docker exec -it mongo01 mongosh
+
+E copiar link que aparecerá
+
+mongodb://127.0.0.1:27017/?directConnection=true&serverSele
+ctionTimeoutMS=2000&appName=mongosh+2.5.0
+
+mongodb://127.0.0.1:27018/?directConnection=true&serverSele
+ctionTimeoutMS=2000&appName=mongosh+2.5.0
+
+mongodb://127.0.0.1:27019/?directConnection=true&serverSele
+ctionTimeoutMS=2000&appName=mongosh+2.5.0
+
+mongodb://127.0.0.1:27020/?directConnection=true&serverSele
+ctionTimeoutMS=2000&appName=mongosh+2.5.0
+
+
+
+O próximo passo é criar o conjunto de réplicas real com os três membros. 
+Abrir Mongo Compass
+
+Execute o comando rs.initiate (tudo em uma única linha)
+rs.initiate ({ _id: "myReplicaSet", members:[{_id:0, host: "mongo01"}, {_id:1, host: "mongo02"}, {_id:2, host: "mongo03"}, {_id:3, host: "mongo04"}]})
+
+
+para avaliar a instrução rs.status(). Isso fornecerá a você o status do seu conjunto de réplicas, incluindo a lista de membros.
+
+Comando:
+-> docker exec -it mongo01 mongosh --eval "rs.status()"
+
+Para saber em que nó você está conectado, execute o seguinte comando:
+
+Comando:
+
+-> rs.isMaster().primary
+
+-> use CorporeSystem
+
+
+db.cliente.insertOne({codigo:1, nome: "Ana Maria"});
+db.cliente.insertOne({codigo:2, nome: "Maria Jose"});
+db.cliente.insertOne({codigo:3, nome: "Jose Silva"});
+db.cliente.insertOne({codigo:4, nome: "Luis Souza"});
+db.cliente.insertOne({codigo:5, nome: "Fernanda Silva"});
+
+
+-> db.cliente.find()
+
+Para verificar se seu conjunto de réplicas está funcionando, você pode tentar parar um dos
+contêineres com docker stop e tentar ler do seu banco de dados novamente.
+
+Comando:
+
+-> docker stop mongo01 (se for o priamrio)
+
+Digite o comando abaixo para verificar o estado do cluster:
+
+
+Comando:
+
+-> docker exec -it mongo02 mongosh --eval "rs.status()"
+
+O nó 4 é o primario
+
+
+No Compasss
+
+Use o banco de dados CorporeSystem e faça a consulta de um registro
+
+
+Comando: 
+
+use CorporeSystem
+
+db.cliente.findOne()
+
+Fazendo inserção
+
+db.cliente.insertOne({codigo:7, nome: "Joao Cardoso"});
+
+Restabelecendo novamente o nó do cluster
+
+docker run -d --rm -p 27017:27017 --name mongo01 --network redeWork mongodb/mongodb-community-server:latest --replSet myReplicaSet --bind_ip localhost,mongo01
+
+Para descobrir se o nó primario voltou
+
+docker exec -it mongo02 mongosh --eval "rs.status()" (se for o secundario)
+
+
+
